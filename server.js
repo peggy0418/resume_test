@@ -11,6 +11,24 @@ app.use(cors());
 
 const messages = [];
 
+const mysql = require('mysql2');
+
+const connection = mysql.createConnection({
+  host: '127.0.0.1',
+  user: 'root',
+  password: 'root',
+  database: 'test_1026',
+});
+
+connection.connect(err => {
+  if (err) {
+    console.error('無法連接到資料庫:', err);
+  } else {
+    console.log('成功連接資料庫!');
+  }
+});
+
+
 app.get('/api/messages', (req, res) => {
   res.json(messages);
 });
@@ -27,11 +45,11 @@ app.get('/api/data', async (req, res) => {
     res.json(response.data);
   } catch (error) {
     if (error.response) {
-      res.status(error.response.status).json({ error: '请求失败' });
+      res.status(error.response.status).json({ error: '請求失敗' });
     } else if (error.request) {
-      res.status(500).json({ error: '没有收到响应' });
+      res.status(500).json({ error: '沒有收到響應' });
     } else {
-      res.status(500).json({ error: '请求错误' });
+      res.status(500).json({ error: '請求錯誤' });
     }
   }
 });
