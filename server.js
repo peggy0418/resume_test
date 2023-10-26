@@ -1,13 +1,14 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const cors = require('cors');
+const axios = require('axios');
 
 const app = express();
 const port = process.env.PORT || 10000;
 
 app.use(bodyParser.json());
+app.use(cors());
 
-// 在這裡配置路由和數據存儲
-// 例如，處理留言的GET和POST請求
 const messages = [];
 
 app.get('/api/messages', (req, res) => {
@@ -20,6 +21,20 @@ app.post('/api/messages', (req, res) => {
   res.json(newMessage);
 });
 
+app.get('/api/data', async (req, res) => {
+  try {
+    const response = await axios.get('http://localhost:10000/api/messages');
+    res.json(response.data);
+  } catch (error) {
+    if (error.response) {
+      res.status(error.response.status).json({ error: '请求失败' });
+    } else if (error.request) {
+      res.status(500).json({ error: '没有收到响应' });
+    } else {
+      res.status(500).json({ error: '请求错误' });
+    }
+  }
+});
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);
