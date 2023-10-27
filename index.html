@@ -6,8 +6,10 @@
 <body>
   <div id="app">
     <h1>留言板</h1>
-    <input v-model="newMessage" @keyup.enter="addMessage" placeholder="輸入留言">
+    姓名:<input v-model="sender" @keyup.enter="addsender" placeholder="輸入姓名">
+    內容:<input v-model="newMessage" @keyup.enter="addMessage" placeholder="輸入留言">
     <ul>
+      <li v-for="sender in senders">{{ sender.name }}</li>
       <li v-for="message in messages">{{ message.text }}</li>
     </ul>
   </div>
@@ -18,6 +20,8 @@
     new Vue({
       el: '#app',
       data: {
+        sender:'',
+        senders:[],
         newMessage: '',
         messages: []
       },
