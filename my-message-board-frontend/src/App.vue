@@ -42,7 +42,8 @@ export default {
         .catch(error => {
           console.error('發生錯誤：', error);
         });
-    },
+        console.log(this.newSender,this.newMessage);
+      },
 
     loadMessages() {
       // 获取留言消息列表，包括发送者信息
