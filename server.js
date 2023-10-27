@@ -57,7 +57,17 @@ app.post('/api/messages', (req, res) => {
 
 // 获取所有留言的API端点
 app.get('/api/messages', (req, res) => {
-  res.json(messages);
+  const sql = 'SELECT * FROM test'; // 查询所有留言的SQL语句
+
+  connection.query(sql, (err, results) => {
+    if (err) {
+      console.error('获取数据时发生错误：', err);
+      return res.status(500).json({ error: '无法获取数据' });
+    }
+
+    // 将查询结果发送到前端
+    res.json(results);
+  });
 });
 
 app.listen(port, () => {
