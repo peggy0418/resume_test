@@ -3,6 +3,7 @@ const app = express();
 const port =10000;
 const cors=require('cors');
 const mysql = require('mysql2');
+const bcrypt = require('bcrypt');
 
 const connection = mysql.createConnection({
   host: '127.0.0.1', // 连接到MySQL容器的主机名
