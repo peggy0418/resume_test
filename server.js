@@ -72,24 +72,32 @@ app.get('/api/messages', (req, res) => {
 });
 
 app.post('/api/register', (req, res) => {
-  const { user_name, user_email,user_password } = req.body;
+  const { user_name, user_email, user_password } = req.body;
 
   // 在这里进行验证，确保提供了必要的注册信息
 
-  // 在数据库中插入用户信息
-  const sql = 'INSERT INTO users (user_name, user_email,user_password ) VALUES (?, ?, ?)';
-  const values = [user_name, user_email,user_password];
-
-  connection.query(sql, values, (err, result) => {
+  // 哈希用户密码
+  bcrypt.hash(user_password, 10, (err, hashedPassword) => {
     if (err) {
-      console.error('插入用户数据时发生错误：', err);
+      console.error('密码哈希时发生错误：', err);
       return res.status(500).json({ error: '无法注册用户' });
     }
 
-    console.log('用户注册成功');
+    // 在数据库中插入用户信息，使用hashedPassword代替原始密码
+    const sql = 'INSERT INTO users (user_name, user_email, user_password) VALUES (?, ?, ?)';
+    const values = [user_name, user_email, hashedPassword];
 
-    // 返回成功注册的消息或者其他需要的信息
-    res.status(201).json({ message: '註冊成功!' });
+    connection.query(sql, values, (err, result) => {
+      if (err) {
+        console.error('插入用户数据时发生错误：', err);
+        return res.status(500).json({ error: '无法注册用户' });
+      }
+
+      console.log('用户注册成功');
+
+      // 返回成功注册的消息或其他需要的信息
+      res.status(201).json({ message: '註冊成功!' });
+    });
   });
 });
 
@@ -101,9 +109,9 @@ app.post('/api/login', (req, res) => {
     return res.status(400).json({ error: '需要提供用户名和密码' });
   }
 
-  // 查询数据库以验证用户登录
-  const sql = 'SELECT * FROM users WHERE user_email = ? AND user_password = ?';
-  const values = [user_email, user_password];
+  // 查询数据库以获取存储的哈希密码
+  const sql = 'SELECT user_password FROM users WHERE user_email = ?';
+  const values = [user_email];
 
   connection.query(sql, values, (err, results) => {
     if (err) {
@@ -111,15 +119,31 @@ app.post('/api/login', (req, res) => {
       return res.status(500).json({ error: '无法验证登录' });
     }
 
-    // 检查查询结果是否包含匹配的用户记录
+    // 如果查询结果包含匹配的用户记录
     if (results.length > 0) {
-      // 用户登录成功
-      console.log('用户登录成功');
-      res.status(200).json({ message: '登录成功' });
+      const storedHashedPassword = results[0].user_password;
+
+      // 使用bcrypt.compare()来比较密码
+      bcrypt.compare(user_password, storedHashedPassword, (err, passwordMatch) => {
+        if (err) {
+          console.error('密码比较时发生错误：', err);
+          return res.status(500).json({ error: '无法验证登录' });
+        }
+
+        if (passwordMatch) {
+          // 用户登录成功
+          console.log('用户登录成功');
+          res.status(200).json({ message: '登录成功' });
+        } else {
+          // 用户登录失败
+          console.log('用户登录失败');
+          res.status(401).json({ error: '电子邮件或密码错误' });
+        }
+      });
     } else {
-      // 用户登录失败
+      // 用户登录失败（未找到匹配的用户记录）
       console.log('用户登录失败');
-      res.status(401).json({ error: '電子郵件或密码错误' });
+      res.status(401).json({ error: '电子邮件或密码错误' });
     }
   });
 });
