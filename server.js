@@ -70,6 +70,35 @@ app.get('/api/messages', (req, res) => {
     res.json(results);
   });
 });
+// 编辑留言的API端点
+app.put('/api/messages/:id', (req, res) => {
+  const msg_id = req.params.id; // 从URL参数中获取要编辑的留言的ID
+  const { message } = req.body; // 从请求主体中获取新的留言内容
+
+  if (!message) {
+    return res.status(400).json({ error: '需要提供新的留言内容' });
+  }
+
+  // 更新数据库中的留言记录
+  const sql = 'UPDATE messages SET message = ? WHERE msg_id = ?';
+  const values = [message, msg_id];
+
+  connection.query(sql, values, (err, result) => {
+    if (err) {
+      console.error('更新留言时发生错误：', err);
+      return res.status(500).json({ error: '无法更新留言' });
+    }
+
+    if (result.affectedRows === 0) {
+      // 如果没有受影响的行数，表示未找到匹配的留言
+      return res.status(404).json({ error: '未找到匹配的留言' });
+    }
+
+    // 更新成功
+    res.status(200).json({ message: '留言已成功更新' });
+  });
+});
+
 // 刪除留言
 app.delete('/api/messages/:id', (req, res) => {
   console.log(req.params)
