@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>留言板</title>
+</head>
+<body>
+  <div id="app">
+    <h1>留言板</h1>
+    姓名:<input v-model="sender" @keyup.enter="addsender" placeholder="輸入姓名">
+    內容:<input v-model="newMessage" @keyup.enter="addMessage" placeholder="輸入留言">
+    <ul>
+      <li v-for="sender in senders">{{ sender.name }}</li>
+      <li v-for="message in messages">{{ message.text }}</li>
+    </ul>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@0.24.0"></script>
+  <script>
+    new Vue({
+      el: '#app',
+      data: {
+        sender:'',
+        senders:[],
+        newMessage: '',
+        messages: []
+      },
+      created() {
+        // 在應用程序創建時從後端加載留言
+        this.loadMessages();
+      },
+      methods: {
+        addMessage() {
+          // 向後端發送POST請求以新增留言
+          axios.post('/api/messages', { text: this.newMessage })
+            .then(response => {
+              this.newMessage = '';
+              this.loadMessages();
+            });
+        },
+        loadMessages() {
+          // 從後端加載留言
+          axios.get('/api/messages')
+            .then(response => {
+              this.messages = response.data;
+            });
+        }
+      }
+    });
+  </script>
+</body>
+</html>
