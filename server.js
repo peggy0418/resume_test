@@ -70,6 +70,30 @@ app.get('/api/messages', (req, res) => {
     res.json(results);
   });
 });
+// 刪除留言
+app.delete('/api/messages/:id', (req, res) => {
+  console.log(req.params)
+  const msg_id = req.params.id; // 从URL参数中获取要删除的留言的ID
+
+  // 在数据库中执行删除操作
+  const sql = 'DELETE FROM messages WHERE msg_id = ?';
+  const values = [msg_id];
+
+  connection.query(sql, values, (err, result) => {
+    if (err) {
+      console.error('删除数据时发生错误：', err);
+      return res.status(500).json({ error: '无法删除留言' });
+    }
+
+    if (result.affectedRows === 0) {
+      // 如果没有受影响的行数，表示未找到匹配的留言
+      return res.status(404).json({ error: '未找到匹配的留言' });
+    }
+
+    // 删除成功
+    res.status(204).send();
+  });
+});
 
 app.post('/api/register', (req, res) => {
   const { user_name, user_email, user_password } = req.body;
