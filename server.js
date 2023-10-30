@@ -35,7 +35,7 @@ app.post('/api/messages', (req, res) => {
     return res.status(400).json({ error: '需要提供发送者和消息' });
   }
 
-  const sql = 'INSERT INTO test (sender, message) VALUES (?, ?)';
+  const sql = 'INSERT INTO messages (sender, message) VALUES (?, ?)';
   const values = [sender, message];
 
   connection.query(sql, values, (err, result) => {
@@ -57,7 +57,7 @@ app.post('/api/messages', (req, res) => {
 
 // 获取所有留言的API端点
 app.get('/api/messages', (req, res) => {
-  const sql = 'SELECT * FROM test'; // 查询所有留言的SQL语句
+  const sql = 'SELECT * FROM messages'; // 查询所有留言的SQL语句
 
   connection.query(sql, (err, results) => {
     if (err) {
@@ -67,6 +67,59 @@ app.get('/api/messages', (req, res) => {
 
     // 将查询结果发送到前端
     res.json(results);
+  });
+});
+
+app.post('/api/register', (req, res) => {
+  const { user_name, user_email,user_password } = req.body;
+
+  // 在这里进行验证，确保提供了必要的注册信息
+
+  // 在数据库中插入用户信息
+  const sql = 'INSERT INTO users (user_name, user_email,user_password ) VALUES (?, ?, ?)';
+  const values = [user_name, user_email,user_password];
+
+  connection.query(sql, values, (err, result) => {
+    if (err) {
+      console.error('插入用户数据时发生错误：', err);
+      return res.status(500).json({ error: '无法注册用户' });
+    }
+
+    console.log('用户注册成功');
+
+    // 返回成功注册的消息或者其他需要的信息
+    res.status(201).json({ message: '註冊成功!' });
+  });
+});
+
+app.post('/api/login', (req, res) => {
+  const { user_email, user_password } = req.body;
+
+  // 在这里进行验证，确保提供了必要的登录信息
+  if (!user_email || !user_password) {
+    return res.status(400).json({ error: '需要提供用户名和密码' });
+  }
+
+  // 查询数据库以验证用户登录
+  const sql = 'SELECT * FROM users WHERE user_email = ? AND user_password = ?';
+  const values = [user_email, user_password];
+
+  connection.query(sql, values, (err, results) => {
+    if (err) {
+      console.error('查询数据库时发生错误：', err);
+      return res.status(500).json({ error: '无法验证登录' });
+    }
+
+    // 检查查询结果是否包含匹配的用户记录
+    if (results.length > 0) {
+      // 用户登录成功
+      console.log('用户登录成功');
+      res.status(200).json({ message: '登录成功' });
+    } else {
+      // 用户登录失败
+      console.log('用户登录失败');
+      res.status(401).json({ error: '電子郵件或密码错误' });
+    }
   });
 });
 
