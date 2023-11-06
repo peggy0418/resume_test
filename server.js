@@ -185,17 +185,17 @@ app.post('/api/login', (req, res) => {
 
         if (passwordMatch) {
           // 用户登录成功
-          console.log('用户登录成功');
-          res.status(200).json({ message: '登录成功' });
+          console.log('使用者登入成功');
+          res.status(200).json({ message: '登入成功' });
         } else {
           // 用户登录失败
-          console.log('用户登录失败');
-          res.status(401).json({ error: '电子邮件或密码错误' });
+          console.log('使用者登入成功');
+          res.status(401).json({ error: '信箱或密碼錯誤' });
         }
       });
     } else {
       // 用户登录失败（未找到匹配的用户记录）
-      console.log('用户登录失败');
+      console.log('使用者登入失敗');
       res.status(401).json({ error: '电子邮件或密码错误' });
     }
   });
