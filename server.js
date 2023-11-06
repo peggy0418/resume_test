@@ -1,9 +1,11 @@
 const express = require('express');
 const app = express();
-const port =10000;
-const cors=require('cors');
+const port = 10000;
+const cors = require('cors');
 const mysql = require('mysql2');
 const bcrypt = require('bcrypt');
+const jwt = require("jsonwebtoken");
+const expressJWT = require("express-jwt");
 
 const connection = mysql.createConnection({
   host: '127.0.0.1', // 连接到MySQL容器的主机名
@@ -11,6 +13,7 @@ const connection = mysql.createConnection({
   password: 'root', // 你在容器创建时设置的密码
   database: 'test_1026', // 你在容器创建时设置的数据库名称
 });
+const secretKey = 'Auth';
 
 // 连接到数据库
 connection.connect((err) => {
@@ -29,7 +32,7 @@ app.use(cors());
 const messages = [];
 
 // 创建一个新留言的API端点
-app.post('/api/messages', (req, res) => {
+app.post('/api/messages', verifyToken,(req, res) => {
   const { sender, message } = req.body;
 
   if (!sender || !message) {
@@ -56,8 +59,25 @@ app.post('/api/messages', (req, res) => {
   });
 });
 
+function verifyToken(req, res, next) {
+  const token = req.header('Authorization');
+
+  if (!token) {
+    return res.status(401).json({ error: '未提供令牌' });
+  }
+
+  jwt.verify(token, jwtSecretKey, (err, decoded) => {
+    if (err) {
+      return res.status(401).json({ error: '无效令牌' });
+    }
+
+    req.user = decoded;
+    next();
+  });
+}
+
 // 获取所有留言的API端点
-app.get('/api/messages', (req, res) => {
+app.get('/api/messages', verifyToken,(req, res) => {
   const sql = 'SELECT * FROM messages'; // 查询所有留言的SQL语句
 
   connection.query(sql, (err, results) => {
@@ -66,12 +86,16 @@ app.get('/api/messages', (req, res) => {
       return res.status(500).json({ error: '无法获取数据' });
     }
 
-    // 将查询结果发送到前端
+    if (!req.user) {
+      return res.status(401).json({ error: '请先登录' });
+    }
+
+    // 如果用户有有效的令牌，将查询结果发送到前端
     res.json(results);
   });
 });
 // 编辑留言的API端点
-app.put('/api/messages/:id', (req, res) => {
+app.put('/api/messages/:id',verifyToken, (req, res) => {
   const msg_id = req.params.id; // 从URL参数中获取要编辑的留言的ID
   const { message } = req.body; // 从请求主体中获取新的留言内容
 
@@ -100,7 +124,7 @@ app.put('/api/messages/:id', (req, res) => {
 });
 
 // 刪除留言
-app.delete('/api/messages/:id', (req, res) => {
+app.delete('/api/messages/:id',verifyToken, (req, res) => {
   console.log(req.params)
   const msg_id = req.params.id; // 从URL参数中获取要删除的留言的ID
 
@@ -127,8 +151,6 @@ app.delete('/api/messages/:id', (req, res) => {
 app.post('/api/register', (req, res) => {
   const { user_name, user_email, user_password } = req.body;
 
-  // 在这里进行验证，确保提供了必要的注册信息
-
   // 哈希用户密码
   bcrypt.hash(user_password, 10, (err, hashedPassword) => {
     if (err) {
@@ -148,8 +170,16 @@ app.post('/api/register', (req, res) => {
 
       console.log('用户注册成功');
 
+      // 在这里进行验证，确保提供了必要的注册信息
+      const payload = {
+        user_email: user_email, // 用户的唯一标识符
+        user_name: user_name, // 用户名或其他用户信息
+      };
+
+      const token = jwt.sign(payload, secretKey, { expiresIn: '1h' });
+
       // 返回成功注册的消息或其他需要的信息
-      res.status(201).json({ message: '註冊成功!' });
+      res.status(201).json({ message: '註冊成功!',token });
     });
   });
 });
@@ -185,6 +215,8 @@ app.post('/api/login', (req, res) => {
 
         if (passwordMatch) {
           // 用户登录成功
+          const payload = { user_id: user.user_id, user_name: user.user_name };
+          const token = jwt.sign(payload, jwtSecretKey, { expiresIn: '1h' });
           console.log('使用者登入成功');
           res.status(200).json({ message: '登入成功' });
         } else {
