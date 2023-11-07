@@ -5,7 +5,6 @@ const cors = require('cors');
 const mysql = require('mysql2');
 const bcrypt = require('bcrypt');
 const jwt = require("jsonwebtoken");
-const expressJWT = require("express-jwt");
 
 const connection = mysql.createConnection({
   host: '127.0.0.1', // localhost
@@ -31,7 +30,7 @@ app.use(cors()); //解決跨域
 const messages = [];
 
 // 建立新留言
-app.post('/api/messages', verifyToken,(req, res) => {
+app.post('/api/messages', (req, res) => {
   const { sender, message } = req.body;
 
   if (!sender || !message) {
@@ -59,44 +58,41 @@ app.post('/api/messages', verifyToken,(req, res) => {
 });
 
 // JWT驗證
-function verifyToken(req, res, next) {
-  const token = req.header('Authorization');
+// function verifyToken(req, res, next) {
+//   var token = req.headers;
 
-  if (!token) {
-    return res.status(401).json({ error: '未提供Token' });
-  }
+//   if (!token) {
+//     return res.status(401).json({ error: '未提供Token' });
+//   }
 
-  jwt.verify(token, jwtSecretKey, (err, decoded) => {
-    if (err) {
-      return res.status(401).json({ error: '無效Token' });
-    }
+//   jwt.verify(token, secretKey, (err, decoded) => {
+//     if (err) {
+//       console.error('JWT验证失败：', err); // 添加调试信息
+//       return res.status(401).json({ error: '无效Token',err });
+//     }
 
-    req.user = decoded;
-    next();
-  });
-}
+//     req.user = decoded;
+//     next();
+//   });
+// }
 
 // 取得留言列表
-app.get('/api/messages', verifyToken,(req, res) => {
-  const sql = 'SELECT * FROM messages'; // 查詢全部的留言
+app.get('/api/messages', (req, res) => {
+  const sql = 'SELECT * FROM messages'; // 查询所有留言的SQL语句
 
   connection.query(sql, (err, results) => {
     if (err) {
-      console.error('獲取資料失敗：', err);
+      console.error('取得資料時發生錯誤：', err);
       return res.status(500).json({ error: '無法取得資料' });
     }
 
-    if (!req.user) {
-      return res.status(401).json({ error: '請先進行登入' });
-    }
-
-    // 如果有Token，將結果發送到前端
+    // 將查詢結果送到前端
     res.json(results);
   });
 });
 
 // 編輯留言
-app.put('/api/messages/:id',verifyToken, (req, res) => {
+app.put('/api/messages/:id', (req, res) => {
   const msg_id = req.params.id; // 取得要編輯的留言ID
   const { message } = req.body; // 編輯留言內容
 
@@ -125,7 +121,7 @@ app.put('/api/messages/:id',verifyToken, (req, res) => {
 });
 
 // 刪除留言
-app.delete('/api/messages/:id',verifyToken, (req, res) => {
+app.delete('/api/messages/:id', (req, res) => {
   console.log(req.params)
   const msg_id = req.params.id; // 找到要刪除的留言ID
 
@@ -218,8 +214,6 @@ app.post('/api/login', (req, res) => {
 
         if (passwordMatch) {
           // 使用者登入成功
-          const payload = { user_id: user.user_id, user_name: user.user_name };
-          const token = jwt.sign(payload, jwtSecretKey, { expiresIn: '1h' });
           console.log('使用者登入成功');
           res.status(200).json({ message: '登入成功' });
         } else {
