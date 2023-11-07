@@ -8,35 +8,34 @@ const jwt = require("jsonwebtoken");
 const expressJWT = require("express-jwt");
 
 const connection = mysql.createConnection({
-  host: '127.0.0.1', // 连接到MySQL容器的主机名
-  user: 'root', // MySQL用户名
-  password: 'root', // 你在容器创建时设置的密码
-  database: 'test_1026', // 你在容器创建时设置的数据库名称
+  host: '127.0.0.1', // localhost
+  user: 'root', //資料庫用戶名
+  password: 'root', // 資料庫帳號
+  database: 'test_1026', // 資料庫名稱
 });
-const secretKey = 'Auth';
+const secretKey = 'Auth'; //JWT TOKEN
 
-// 连接到数据库
+// 連接資料庫
 connection.connect((err) => {
   if (err) {
-    console.error('无法连接到MySQL数据库：', err);
+    console.error('無法連接到mysql資料庫：', err);
     return;
   }
-  console.log('已成功连接到MySQL数据库');
+  console.log('mysql資料庫連接成功');
 });
 
-// 使用中间件来解析JSON请求主体
-app.use(express.json());
-app.use(cors());
+app.use(express.json()); //解決body-parser的舊問題
+app.use(cors()); //解決跨域
 
-// 在内存中存储留言（你可以根据需求替换为数据库存储）
+// 初始留言
 const messages = [];
 
-// 创建一个新留言的API端点
+// 建立新留言
 app.post('/api/messages', verifyToken,(req, res) => {
   const { sender, message } = req.body;
 
   if (!sender || !message) {
-    return res.status(400).json({ error: '需要提供发送者和消息' });
+    return res.status(400).json({ error: '需要提供sender或message' });
   }
 
   const sql = 'INSERT INTO messages (sender, message) VALUES (?, ?)';
@@ -44,13 +43,13 @@ app.post('/api/messages', verifyToken,(req, res) => {
 
   connection.query(sql, values, (err, result) => {
     if (err) {
-      console.error('插入数据时发生错误：', err);
-      return res.status(500).json({ error: '无法插入数据' });
+      console.error('插入資料時發生錯誤：', err);
+      return res.status(500).json({ error: '無法插入資料' });
     }
     console.log('資料成功匯入')
 
     const newMessage = {
-      id: result.insertId, // 使用插入的行ID
+      id: result.insertId, // 留言列表ID
       sender,
       message,
     };
@@ -59,16 +58,17 @@ app.post('/api/messages', verifyToken,(req, res) => {
   });
 });
 
+// JWT驗證
 function verifyToken(req, res, next) {
   const token = req.header('Authorization');
 
   if (!token) {
-    return res.status(401).json({ error: '未提供令牌' });
+    return res.status(401).json({ error: '未提供Token' });
   }
 
   jwt.verify(token, jwtSecretKey, (err, decoded) => {
     if (err) {
-      return res.status(401).json({ error: '无效令牌' });
+      return res.status(401).json({ error: '無效Token' });
     }
 
     req.user = decoded;
@@ -76,109 +76,112 @@ function verifyToken(req, res, next) {
   });
 }
 
-// 获取所有留言的API端点
+// 取得留言列表
 app.get('/api/messages', verifyToken,(req, res) => {
-  const sql = 'SELECT * FROM messages'; // 查询所有留言的SQL语句
+  const sql = 'SELECT * FROM messages'; // 查詢全部的留言
 
   connection.query(sql, (err, results) => {
     if (err) {
-      console.error('获取数据时发生错误：', err);
-      return res.status(500).json({ error: '无法获取数据' });
+      console.error('獲取資料失敗：', err);
+      return res.status(500).json({ error: '無法取得資料' });
     }
 
     if (!req.user) {
-      return res.status(401).json({ error: '请先登录' });
+      return res.status(401).json({ error: '請先進行登入' });
     }
 
-    // 如果用户有有效的令牌，将查询结果发送到前端
+    // 如果有Token，將結果發送到前端
     res.json(results);
   });
 });
-// 编辑留言的API端点
+
+// 編輯留言
 app.put('/api/messages/:id',verifyToken, (req, res) => {
-  const msg_id = req.params.id; // 从URL参数中获取要编辑的留言的ID
-  const { message } = req.body; // 从请求主体中获取新的留言内容
+  const msg_id = req.params.id; // 取得要編輯的留言ID
+  const { message } = req.body; // 編輯留言內容
 
   if (!message) {
-    return res.status(400).json({ error: '需要提供新的留言内容' });
+    return res.status(400).json({ error: '新的留言內容為空' });
   }
 
-  // 更新数据库中的留言记录
+  // 更新資料庫的留言內容(編輯的那筆)
   const sql = 'UPDATE messages SET message = ? WHERE msg_id = ?';
   const values = [message, msg_id];
 
   connection.query(sql, values, (err, result) => {
     if (err) {
-      console.error('更新留言时发生错误：', err);
-      return res.status(500).json({ error: '无法更新留言' });
+      console.error('更新留言發生錯誤：', err);
+      return res.status(500).json({ error: '無法更新留言' });
     }
 
     if (result.affectedRows === 0) {
-      // 如果没有受影响的行数，表示未找到匹配的留言
+      // 如果沒有偵測到有異動的行數，代表沒有找到匹配的留言
       return res.status(404).json({ error: '未找到匹配的留言' });
     }
 
     // 更新成功
-    res.status(200).json({ message: '留言已成功更新' });
+    res.status(200).json({ message: '留言成功更新' });
   });
 });
 
 // 刪除留言
 app.delete('/api/messages/:id',verifyToken, (req, res) => {
   console.log(req.params)
-  const msg_id = req.params.id; // 从URL参数中获取要删除的留言的ID
+  const msg_id = req.params.id; // 找到要刪除的留言ID
 
-  // 在数据库中执行删除操作
+  // 在資料庫DELETE
   const sql = 'DELETE FROM messages WHERE msg_id = ?';
   const values = [msg_id];
 
   connection.query(sql, values, (err, result) => {
     if (err) {
-      console.error('删除数据时发生错误：', err);
-      return res.status(500).json({ error: '无法删除留言' });
+      console.error('刪除資料時發生錯誤：', err);
+      return res.status(500).json({ error: '無法刪除留言' });
     }
 
     if (result.affectedRows === 0) {
-      // 如果没有受影响的行数，表示未找到匹配的留言
+      // 如果沒有偵測到有異動的行數，代表沒有找到匹配的留言
       return res.status(404).json({ error: '未找到匹配的留言' });
     }
 
-    // 删除成功
+    // 刪除成功
     res.status(204).send();
   });
 });
 
+//使用者註冊 
 app.post('/api/register', (req, res) => {
   const { user_name, user_email, user_password } = req.body;
 
-  // 哈希用户密码
+  // hash psw
   bcrypt.hash(user_password, 10, (err, hashedPassword) => {
     if (err) {
-      console.error('密码哈希时发生错误：', err);
-      return res.status(500).json({ error: '无法注册用户' });
+      console.error('密碼雜湊時發生錯誤：', err);
+      return res.status(500).json({ error: '無法註冊' });
     }
 
-    // 在数据库中插入用户信息，使用hashedPassword代替原始密码
+    // 將資料放進資料庫，密碼使用雜湊過的編碼
     const sql = 'INSERT INTO users (user_name, user_email, user_password) VALUES (?, ?, ?)';
     const values = [user_name, user_email, hashedPassword];
 
     connection.query(sql, values, (err, result) => {
       if (err) {
-        console.error('插入用户数据时发生错误：', err);
-        return res.status(500).json({ error: '无法注册用户' });
+        console.error('使用者註冊資料錯誤：', err);
+        return res.status(500).json({ error: '無法註冊使用者' });
       }
 
-      console.log('用户注册成功');
+      console.log('使用者註冊成功');
 
-      // 在这里进行验证，确保提供了必要的注册信息
+      // 將註冊資料存到payload(不可以有密碼)
       const payload = {
-        user_email: user_email, // 用户的唯一标识符
-        user_name: user_name, // 用户名或其他用户信息
+        user_email: user_email, // 使用者email
+        user_name: user_name, // 使用者名稱
       };
 
+      // JWT TOKEN (1小時後過期)
       const token = jwt.sign(payload, secretKey, { expiresIn: '1h' });
 
-      // 返回成功注册的消息或其他需要的信息
+      // 註冊成功
       res.status(201).json({ message: '註冊成功!',token });
     });
   });
@@ -187,52 +190,52 @@ app.post('/api/register', (req, res) => {
 app.post('/api/login', (req, res) => {
   const { user_email, user_password } = req.body;
 
-  // 在这里进行验证，确保提供了必要的登录信息
+  // 登入資料
   if (!user_email || !user_password) {
-    return res.status(400).json({ error: '需要提供用户名和密码' });
+    return res.status(400).json({ error: '需要提供使用者名稱和密碼' });
   }
 
-  // 查询数据库以获取存储的哈希密码
+  // 查詢資料庫
   const sql = 'SELECT user_password FROM users WHERE user_email = ?';
   const values = [user_email];
 
   connection.query(sql, values, (err, results) => {
     if (err) {
-      console.error('查询数据库时发生错误：', err);
-      return res.status(500).json({ error: '无法验证登录' });
+      console.error('查詢資料發生錯誤：', err);
+      return res.status(500).json({ error: '登入驗證錯誤' });
     }
 
-    // 如果查询结果包含匹配的用户记录
+    // 如果使用者資料存在
     if (results.length > 0) {
       const storedHashedPassword = results[0].user_password;
 
-      // 使用bcrypt.compare()来比较密码
+      // 使用bcrypt.compare來驗證密碼
       bcrypt.compare(user_password, storedHashedPassword, (err, passwordMatch) => {
         if (err) {
-          console.error('密码比较时发生错误：', err);
-          return res.status(500).json({ error: '无法验证登录' });
+          console.error('密碼驗證發生錯誤：', err);
+          return res.status(500).json({ error: '登入驗證失敗' });
         }
 
         if (passwordMatch) {
-          // 用户登录成功
+          // 使用者登入成功
           const payload = { user_id: user.user_id, user_name: user.user_name };
           const token = jwt.sign(payload, jwtSecretKey, { expiresIn: '1h' });
           console.log('使用者登入成功');
           res.status(200).json({ message: '登入成功' });
         } else {
-          // 用户登录失败
-          console.log('使用者登入成功');
+          // 使用者登入失敗
+          console.log('使用者登入失敗');
           res.status(401).json({ error: '信箱或密碼錯誤' });
         }
       });
     } else {
-      // 用户登录失败（未找到匹配的用户记录）
+      // 使用者登入失敗（沒有找到用戶）
       console.log('使用者登入失敗');
-      res.status(401).json({ error: '电子邮件或密码错误' });
+      res.status(401).json({ error: '信箱或密碼錯誤' });
     }
   });
 });
 
 app.listen(port, () => {
-  console.log(`服务器运行在端口 ${port}`);
+  console.log(`port: ${port}`);
 });
